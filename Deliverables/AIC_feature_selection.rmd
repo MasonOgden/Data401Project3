@@ -1,0 +1,60 @@
+---
+title: "Sberbank R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+library(MASS) # for forward/backward stepwise AIC
+library(olsrr)
+```
+
+
+```{r}
+train <- read.csv("train_cleaned.csv")
+macro <- read.csv("macro_cleaned.csv")
+```
+
+```{r}
+# remove id and timestamp because they won't be used for prediction
+train <- subset(train, select = -c(timestamp))
+macro <- subset(macro, select = -c(timestamp))
+```
+
+```{r}
+# dot means 'all columns not otherwise in the formula'
+train.lm <- lm(price_doc ~ ., data=train)
+```
+
+```{r}
+summary(train.lm)
+```
+
+```{r}
+step.results <- ols_step_forward_aic(train.lm, progress=TRUE)
+summary(step.model)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
