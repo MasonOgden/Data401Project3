@@ -1,0 +1,97 @@
+
+## Creating the animated bar chart
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(gganimate)
+library(lubridate)
+library(gifski)
+library(png)
+```
+
+```{r, warning=FALSE, message=FALSE}
+df <- read_csv("case_location_time.csv")
+```
+
+### Data Cleaning
+
+```{r}
+fill_nas <- function(vec) {
+  if (is.na(vec[1])) { # if the first value is missing
+    vec[1] <- 0
+  }
+  
+  for (i in 2:length(vec)) {
+    if (is.na(vec[i])) { # if the current value is missing
+      vec[i] <- vec[i - 1] # then set it to the most recent non-missing value
+    }
+  }
+  vec
+}
+```
+
+
+```{r}
+# converting from wide to long
+df_long <- df %>%
+  mutate(Date = mdy(paste0(Date, "/2020"))) %>%
+  filter(Date >= "2020-03-14") %>%
+  arrange(Date) %>%
+  mutate(across(-Date, fill_nas)) %>%
+  pivot_longer(!Date, names_to="location", values_to="case_count")
+
+df_ready <- df_long %>%
+  group_by(Date) %>%
+  mutate(rank = rank(-case_count),
+         value_rel = case_count / case_count[rank==1]) %>%
+  group_by(location) %>%
+  filter(rank <= 10)
+```
+
+
+### Static Plot
+
+```{r}
+anim <- df_ready %>%
+  ggplot(aes(rank, group = location)) + 
+    geom_tile(aes(y = case_count / 2,
+             height = case_count,
+             width = 0.9), alpha = 0.8, color = NA) + 
+    geom_text(aes(y = 0, label = paste(location, " ")), 
+              vjust = 0.2, hjust = 1, size = 7) + 
+    geom_text(aes(y = case_count, label = case_count, 
+                  hjust = 0), size = 8) + 
+    coord_flip(clip = "off", expand=TRUE) + 
+    scale_x_reverse() + 
+    theme_minimal() + 
+    theme(axis.line=element_blank(),
+          axis.text.x=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          legend.position="none",
+          panel.background=element_blank(),
+          panel.border=element_blank(),
+          panel.grid.major=element_blank(),
+          panel.grid.minor=element_blank(),
+          panel.grid.major.x = element_line( size=.1, color="grey" ),
+          panel.grid.minor.x = element_line( size=.1, color="grey" ),
+          plot.title=element_text(size=25, hjust=0.5, face="bold",     colour="red", vjust=-1),
+          plot.subtitle=element_text(size=18, hjust=0.5, face="italic", color="red"),
+          plot.caption =element_text(size=12, hjust=0.5, face="italic", color="red"),
+          plot.background=element_blank(),
+          plot.margin = margin(1, 4, 1, 8, "cm")) + 
+    transition_states(Date, transition_length = 4, state_length = 1) + 
+    ease_aes('sine-in-out') + 
+    labs(title = "Total COVID-19 Cases in SLO County by City: {closest_state}",
+         caption = "Data Source: EmergencySLO.org")
+```
+
+### Creating animation
+
+```{r}
+animate(anim, nframes = 600, fps = 25, width = 1200, height = 1000,
+        renderer = gifski_renderer('gganim.gif'))
+```
+
